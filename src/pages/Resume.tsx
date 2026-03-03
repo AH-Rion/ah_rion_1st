@@ -31,7 +31,7 @@ const initialForm: ResumeForm = {
   careerGoal: "", workExperience: "", skills: "", education: "", languages: "", projects: "", references: "",
 };
 
-const WEBHOOK_URL = "https://jsadkjdj.app.n8n.cloud/webhook-test/477e6e25-7a8b-4788-b96e-42bcd00714b6";
+const WEBHOOK_URL = "https://jsadkjdj.app.n8n.cloud/webhook/477e6e25-7a8b-4788-b96e-42bcd00714b6";
 
 const AI_PROMPT = `You are a world-class professional resume writer and career consultant. Using the candidate data provided below, generate a polished, ATS-optimized, professional resume.
 
