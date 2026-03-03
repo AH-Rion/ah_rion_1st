@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import Layout from "@/components/Layout";
-import { Loader2, Sparkles, CheckCircle2, Upload, User, Phone, Mail, MapPin, Globe } from "lucide-react";
+import { Loader2, Sparkles, Upload, User, Phone, Mail, MapPin, Globe, Download, ArrowLeft, FileText, CheckCircle2 } from "lucide-react";
 import { z } from "zod";
 
 const resumeSchema = z.object({
@@ -70,6 +70,7 @@ const Resume = () => {
   const [errors, setErrors] = useState<Partial<Record<keyof ResumeForm, string>>>({});
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [photo, setPhoto] = useState<string | null>(null);
+  const [aiResponse, setAiResponse] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = (name: keyof ResumeForm, value: string) => {
@@ -106,11 +107,13 @@ const Resume = () => {
 
     try {
       const prompt = AI_PROMPT + JSON.stringify(result.data, null, 2);
-      await fetch(WEBHOOK_URL, {
+      const res = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...result.data, photo, prompt }),
       });
+      const data = await res.text();
+      setAiResponse(data);
       setStatus("success");
     } catch {
       setStatus("error");
@@ -384,16 +387,135 @@ const Resume = () => {
             ) : (
               <motion.div
                 key="success"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-24"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="max-w-4xl mx-auto"
               >
-                <CheckCircle2 className="mx-auto text-primary mb-6" size={48} />
-                <h2 className="font-display text-2xl font-bold text-foreground mb-2">Resume submitted successfully!</h2>
-                <p className="text-muted-foreground mb-8">Your AI-powered resume has been generated. Check your email or download it from the link provided.</p>
-                <Button variant="outline" onClick={() => { setStatus("idle"); setForm(initialForm); setPhoto(null); }}>
-                  Create Another Resume
-                </Button>
+                {/* Success Header */}
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <CheckCircle2 className="text-primary" size={20} />
+                  </div>
+                  <div>
+                    <h2 className="font-display text-xl font-bold text-foreground">Your AI Resume is Ready!</h2>
+                    <p className="text-sm text-muted-foreground">Review your enhanced, ATS-optimized resume below.</p>
+                  </div>
+                </div>
+
+                {/* AI Resume Output */}
+                <div className="border border-border rounded-xl overflow-hidden shadow-2xl bg-card">
+                  {/* Header Bar */}
+                  <div className="flex items-center justify-between px-6 py-3 bg-muted/50 border-b border-border">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <FileText size={16} />
+                      <span className="text-xs font-medium uppercase tracking-wider">AI-Generated Resume</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const blob = new Blob([aiResponse], { type: "text/plain" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `${form.fullName || "Resume"}_AI_Resume.txt`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                      >
+                        <Download size={14} className="mr-1.5" />
+                        Download
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(aiResponse);
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Resume Content — styled like a real document */}
+                  <div className="p-8 md:p-12 bg-white min-h-[600px]">
+                    <div className="prose prose-sm max-w-none">
+                      {aiResponse.split("\n").map((line, i) => {
+                        const trimmed = line.trim();
+                        if (!trimmed) return <div key={i} className="h-3" />;
+
+                        // Section headers (all caps or lines ending with colon)
+                        if (
+                          /^[A-Z\s&\/]{4,}$/.test(trimmed) ||
+                          /^#{1,3}\s/.test(trimmed) ||
+                          /^(CONTACT|PROFESSIONAL SUMMARY|WORK EXPERIENCE|SKILLS|EDUCATION|LANGUAGES|PROJECTS|REFERENCES|PROFILE|OBJECTIVE|CERTIFICATIONS|AWARDS)/i.test(trimmed)
+                        ) {
+                          return (
+                            <h3
+                              key={i}
+                              className="font-bold uppercase tracking-widest text-xs text-[#1b2a4a] mt-5 mb-2 pb-1 border-b border-[#1b2a4a]/20"
+                            >
+                              {trimmed.replace(/^#{1,3}\s/, "")}
+                            </h3>
+                          );
+                        }
+
+                        // Bullet points
+                        if (/^[•\-\*✓⚬]\s/.test(trimmed)) {
+                          return (
+                            <div key={i} className="flex items-start gap-2 ml-2 mb-0.5 text-gray-700 text-[13px] leading-relaxed">
+                              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#1b2a4a] shrink-0" />
+                              <span>{trimmed.replace(/^[•\-\*✓⚬]\s/, "")}</span>
+                            </div>
+                          );
+                        }
+
+                        // Name detection (first line or very short bold-looking line at top)
+                        if (i < 3 && trimmed.length < 40 && /^[A-Z]/.test(trimmed)) {
+                          return (
+                            <h2 key={i} className="text-2xl font-bold text-[#1b2a4a] leading-tight">
+                              {trimmed}
+                            </h2>
+                          );
+                        }
+
+                        // Regular paragraph
+                        return (
+                          <p key={i} className="text-gray-700 text-[13px] leading-relaxed mb-0.5">
+                            {trimmed}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setStatus("idle");
+                      setAiResponse("");
+                    }}
+                  >
+                    <ArrowLeft size={16} className="mr-2" />
+                    Edit & Regenerate
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setStatus("idle");
+                      setForm(initialForm);
+                      setPhoto(null);
+                      setAiResponse("");
+                    }}
+                  >
+                    <Sparkles size={16} className="mr-2" />
+                    Create New Resume
+                  </Button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
