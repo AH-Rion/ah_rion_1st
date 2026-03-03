@@ -238,6 +238,69 @@ const Index = () => {
           </Button>
         </div>
       </section>
+
+      {/* Made By AH RION */}
+      <section className="py-16 bg-background overflow-hidden">
+        <div className="container mx-auto px-4 flex flex-col items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-center"
+          >
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">Crafted with passion</p>
+            <div className="relative inline-block">
+              <motion.h2
+                className="font-display text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight"
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+              >
+                <span className="text-foreground">MADE BY </span>
+                <motion.span
+                  className="text-gradient relative"
+                  initial={{ backgroundSize: "0% 100%" }}
+                  whileInView={{ backgroundSize: "100% 100%" }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 1, delay: 0.5 }}
+                >
+                  AH RION
+                </motion.span>
+              </motion.h2>
+              {/* Animated underline */}
+              <motion.div
+                className="h-1 rounded-full bg-gradient-to-r from-primary via-gold-light to-gold-glow mt-3"
+                initial={{ scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" }}
+                style={{ transformOrigin: "left" }}
+              />
+              {/* Glow effect */}
+              <motion.div
+                className="absolute -inset-8 rounded-3xl bg-primary/5 blur-2xl -z-10"
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 1, delay: 0.4 }}
+              />
+            </div>
+            {/* Sparkle particles */}
+            <div className="flex justify-center gap-6 mt-6">
+              {[0, 1, 2].map((i) => (
+                <motion.div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-primary"
+                  animate={{ y: [0, -8, 0], opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 1.5, delay: i * 0.3, repeat: Infinity }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
     </Layout>
   );
 };
