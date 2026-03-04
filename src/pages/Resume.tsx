@@ -107,15 +107,52 @@ const Resume = () => {
 
     try {
       const prompt = AI_PROMPT + JSON.stringify(result.data, null, 2);
+      console.log("Sending webhook request...");
       const res = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...result.data, photo, prompt }),
       });
+      console.log("Webhook response status:", res.status);
+      if (!res.ok) {
+        console.error("Webhook error response:", res.status, res.statusText);
+        setStatus("error");
+        return;
+      }
       const data = await res.text();
-      setAiResponse(data);
+      console.log("Webhook response data:", data);
+      
+      // Handle JSON responses - extract the text content
+      let parsedContent = data;
+      try {
+        const jsonData = JSON.parse(data);
+        // n8n may return data in various JSON formats
+        if (typeof jsonData === 'string') {
+          parsedContent = jsonData;
+        } else if (jsonData.output) {
+          parsedContent = jsonData.output;
+        } else if (jsonData.text) {
+          parsedContent = jsonData.text;
+        } else if (jsonData.message) {
+          parsedContent = jsonData.message;
+        } else if (jsonData.response) {
+          parsedContent = jsonData.response;
+        } else if (jsonData.result) {
+          parsedContent = jsonData.result;
+        } else if (jsonData.data) {
+          parsedContent = typeof jsonData.data === 'string' ? jsonData.data : JSON.stringify(jsonData.data);
+        } else {
+          // If it's a JSON object we don't recognize, stringify it nicely
+          parsedContent = JSON.stringify(jsonData, null, 2);
+        }
+      } catch {
+        // Not JSON, use raw text as-is
+      }
+      
+      setAiResponse(parsedContent);
       setStatus("success");
-    } catch {
+    } catch (err) {
+      console.error("Webhook fetch error:", err);
       setStatus("error");
     }
   };
