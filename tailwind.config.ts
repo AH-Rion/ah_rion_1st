@@ -105,6 +105,7 @@ export default {
         "fade-up": "fade-up 0.6s ease-out forwards",
         "pulse-gold": "pulse-gold 2s ease-in-out infinite",
       },
+      .
     },
   },
   plugins: [require("tailwindcss-animate")],
