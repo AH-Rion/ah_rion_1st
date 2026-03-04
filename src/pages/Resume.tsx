@@ -71,6 +71,7 @@ const Resume = () => {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [photo, setPhoto] = useState<string | null>(null);
   const [aiResponse, setAiResponse] = useState<string>("");
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = (name: keyof ResumeForm, value: string) => {
@@ -119,14 +120,74 @@ const Resume = () => {
         setStatus("error");
         return;
       }
+
+      const contentType = res.headers.get("content-type") || "";
+      console.log("Response content-type:", contentType);
+
+      // Handle PDF response
+      if (contentType.includes("application/pdf")) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setPdfUrl(url);
+        setAiResponse("");
+        setStatus("success");
+        return;
+      }
+
+      // Handle binary/octet-stream (n8n may send PDF as octet-stream)
+      if (contentType.includes("application/octet-stream")) {
+        const blob = await res.blob();
+        // Check if it's a PDF by looking at magic bytes
+        const arrayBuffer = await blob.slice(0, 5).arrayBuffer();
+        const header = new TextDecoder().decode(arrayBuffer);
+        if (header.startsWith("%PDF")) {
+          const pdfBlob = new Blob([blob], { type: "application/pdf" });
+          const url = URL.createObjectURL(pdfBlob);
+          setPdfUrl(url);
+          setAiResponse("");
+          setStatus("success");
+          return;
+        }
+      }
+
+      // Handle JSON that contains base64-encoded PDF
       const data = await res.text();
       console.log("Webhook response data:", data);
-      
-      // Handle JSON responses - extract the text content
+
       let parsedContent = data;
       try {
         const jsonData = JSON.parse(data);
-        // n8n may return data in various JSON formats
+
+        // Check for base64 PDF in common keys
+        const pdfKeys = ["pdf", "file", "document", "binary", "data", "output", "result"];
+        for (const key of pdfKeys) {
+          const val = jsonData[key];
+          if (typeof val === "string" && val.length > 100) {
+            // Try to detect base64 PDF
+            const clean = val.replace(/^data:application\/pdf;base64,/, "");
+            try {
+              const binaryStr = atob(clean.substring(0, 10));
+              if (binaryStr.startsWith("%PDF")) {
+                const byteChars = atob(clean);
+                const byteNumbers = new Array(byteChars.length);
+                for (let i = 0; i < byteChars.length; i++) {
+                  byteNumbers[i] = byteChars.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const pdfBlob = new Blob([byteArray], { type: "application/pdf" });
+                const url = URL.createObjectURL(pdfBlob);
+                setPdfUrl(url);
+                setAiResponse("");
+                setStatus("success");
+                return;
+              }
+            } catch {
+              // Not base64, continue
+            }
+          }
+        }
+
+        // Fallback: text-based response
         if (typeof jsonData === 'string') {
           parsedContent = jsonData;
         } else if (jsonData.output) {
@@ -142,13 +203,13 @@ const Resume = () => {
         } else if (jsonData.data) {
           parsedContent = typeof jsonData.data === 'string' ? jsonData.data : JSON.stringify(jsonData.data);
         } else {
-          // If it's a JSON object we don't recognize, stringify it nicely
           parsedContent = JSON.stringify(jsonData, null, 2);
         }
       } catch {
         // Not JSON, use raw text as-is
       }
-      
+
+      setPdfUrl(null);
       setAiResponse(parsedContent);
       setStatus("success");
     } catch (err) {
@@ -435,99 +496,131 @@ const Resume = () => {
                   </div>
                   <div>
                     <h2 className="font-display text-xl font-bold text-foreground">Your AI Resume is Ready!</h2>
-                    <p className="text-sm text-muted-foreground">Review your enhanced, ATS-optimized resume below.</p>
+                    <p className="text-sm text-muted-foreground">
+                      {pdfUrl ? "Your PDF resume is ready to download and preview." : "Review your enhanced, ATS-optimized resume below."}
+                    </p>
                   </div>
                 </div>
 
-                {/* AI Resume Output */}
-                <div className="border border-border rounded-xl overflow-hidden shadow-2xl bg-card">
-                  {/* Header Bar */}
-                  <div className="flex items-center justify-between px-6 py-3 bg-muted/50 border-b border-border">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <FileText size={16} />
-                      <span className="text-xs font-medium uppercase tracking-wider">AI-Generated Resume</span>
+                {pdfUrl ? (
+                  <>
+                    {/* PDF Output */}
+                    <div className="border border-border rounded-xl overflow-hidden shadow-2xl bg-card">
+                      {/* Header Bar */}
+                      <div className="flex items-center justify-between px-6 py-3 bg-muted/50 border-b border-border">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <FileText size={16} />
+                          <span className="text-xs font-medium uppercase tracking-wider">AI-Generated Resume (PDF)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const a = document.createElement("a");
+                              a.href = pdfUrl;
+                              a.download = `${form.fullName || "Resume"}_AI_Resume.pdf`;
+                              a.click();
+                            }}
+                          >
+                            <Download size={14} className="mr-1.5" />
+                            Download PDF
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(pdfUrl, "_blank")}
+                          >
+                            Open in New Tab
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* PDF Preview */}
+                      <div className="bg-muted/20">
+                        <iframe
+                          src={pdfUrl}
+                          title="Resume PDF Preview"
+                          className="w-full border-0"
+                          style={{ height: "80vh", minHeight: "600px" }}
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const blob = new Blob([aiResponse], { type: "text/plain" });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = url;
-                          a.download = `${form.fullName || "Resume"}_AI_Resume.txt`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }}
-                      >
-                        <Download size={14} className="mr-1.5" />
-                        Download
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          navigator.clipboard.writeText(aiResponse);
-                        }}
-                      >
-                        Copy
-                      </Button>
+                  </>
+                ) : (
+                  <>
+                    {/* Text AI Resume Output */}
+                    <div className="border border-border rounded-xl overflow-hidden shadow-2xl bg-card">
+                      {/* Header Bar */}
+                      <div className="flex items-center justify-between px-6 py-3 bg-muted/50 border-b border-border">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <FileText size={16} />
+                          <span className="text-xs font-medium uppercase tracking-wider">AI-Generated Resume</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const blob = new Blob([aiResponse], { type: "text/plain" });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `${form.fullName || "Resume"}_AI_Resume.txt`;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            }}
+                          >
+                            <Download size={14} className="mr-1.5" />
+                            Download
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(aiResponse);
+                            }}
+                          >
+                            Copy
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Resume Content */}
+                      <div className="p-8 md:p-12 bg-white min-h-[600px]">
+                        <div className="prose prose-sm max-w-none">
+                          {aiResponse.split("\n").map((line, i) => {
+                            const trimmed = line.trim();
+                            if (!trimmed) return <div key={i} className="h-3" />;
+                            if (
+                              /^[A-Z\s&\/]{4,}$/.test(trimmed) ||
+                              /^#{1,3}\s/.test(trimmed) ||
+                              /^(CONTACT|PROFESSIONAL SUMMARY|WORK EXPERIENCE|SKILLS|EDUCATION|LANGUAGES|PROJECTS|REFERENCES|PROFILE|OBJECTIVE|CERTIFICATIONS|AWARDS)/i.test(trimmed)
+                            ) {
+                              return (
+                                <h3 key={i} className="font-bold uppercase tracking-widest text-xs text-[#1b2a4a] mt-5 mb-2 pb-1 border-b border-[#1b2a4a]/20">
+                                  {trimmed.replace(/^#{1,3}\s/, "")}
+                                </h3>
+                              );
+                            }
+                            if (/^[•\-\*✓⚬]\s/.test(trimmed)) {
+                              return (
+                                <div key={i} className="flex items-start gap-2 ml-2 mb-0.5 text-gray-700 text-[13px] leading-relaxed">
+                                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#1b2a4a] shrink-0" />
+                                  <span>{trimmed.replace(/^[•\-\*✓⚬]\s/, "")}</span>
+                                </div>
+                              );
+                            }
+                            if (i < 3 && trimmed.length < 40 && /^[A-Z]/.test(trimmed)) {
+                              return <h2 key={i} className="text-2xl font-bold text-[#1b2a4a] leading-tight">{trimmed}</h2>;
+                            }
+                            return <p key={i} className="text-gray-700 text-[13px] leading-relaxed mb-0.5">{trimmed}</p>;
+                          })}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Resume Content — styled like a real document */}
-                  <div className="p-8 md:p-12 bg-white min-h-[600px]">
-                    <div className="prose prose-sm max-w-none">
-                      {aiResponse.split("\n").map((line, i) => {
-                        const trimmed = line.trim();
-                        if (!trimmed) return <div key={i} className="h-3" />;
-
-                        // Section headers (all caps or lines ending with colon)
-                        if (
-                          /^[A-Z\s&\/]{4,}$/.test(trimmed) ||
-                          /^#{1,3}\s/.test(trimmed) ||
-                          /^(CONTACT|PROFESSIONAL SUMMARY|WORK EXPERIENCE|SKILLS|EDUCATION|LANGUAGES|PROJECTS|REFERENCES|PROFILE|OBJECTIVE|CERTIFICATIONS|AWARDS)/i.test(trimmed)
-                        ) {
-                          return (
-                            <h3
-                              key={i}
-                              className="font-bold uppercase tracking-widest text-xs text-[#1b2a4a] mt-5 mb-2 pb-1 border-b border-[#1b2a4a]/20"
-                            >
-                              {trimmed.replace(/^#{1,3}\s/, "")}
-                            </h3>
-                          );
-                        }
-
-                        // Bullet points
-                        if (/^[•\-\*✓⚬]\s/.test(trimmed)) {
-                          return (
-                            <div key={i} className="flex items-start gap-2 ml-2 mb-0.5 text-gray-700 text-[13px] leading-relaxed">
-                              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#1b2a4a] shrink-0" />
-                              <span>{trimmed.replace(/^[•\-\*✓⚬]\s/, "")}</span>
-                            </div>
-                          );
-                        }
-
-                        // Name detection (first line or very short bold-looking line at top)
-                        if (i < 3 && trimmed.length < 40 && /^[A-Z]/.test(trimmed)) {
-                          return (
-                            <h2 key={i} className="text-2xl font-bold text-[#1b2a4a] leading-tight">
-                              {trimmed}
-                            </h2>
-                          );
-                        }
-
-                        // Regular paragraph
-                        return (
-                          <p key={i} className="text-gray-700 text-[13px] leading-relaxed mb-0.5">
-                            {trimmed}
-                          </p>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
+                  </>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
@@ -536,6 +629,7 @@ const Resume = () => {
                     onClick={() => {
                       setStatus("idle");
                       setAiResponse("");
+                      if (pdfUrl) { URL.revokeObjectURL(pdfUrl); setPdfUrl(null); }
                     }}
                   >
                     <ArrowLeft size={16} className="mr-2" />
@@ -547,6 +641,7 @@ const Resume = () => {
                       setForm(initialForm);
                       setPhoto(null);
                       setAiResponse("");
+                      if (pdfUrl) { URL.revokeObjectURL(pdfUrl); setPdfUrl(null); }
                     }}
                   >
                     <Sparkles size={16} className="mr-2" />
