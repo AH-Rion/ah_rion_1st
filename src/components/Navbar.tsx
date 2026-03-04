@@ -22,9 +22,19 @@ const Navbar = () => {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link to="/" className="font-display text-xl font-bold tracking-tight text-foreground">
-          Free Resume<span className="text-gradient">Builder</span>
-        </Link>
+        <div className="flex flex-col leading-tight">
+          <Link to="/" className="font-display text-xl font-bold tracking-tight text-foreground">
+            Free Resume<span className="text-gradient">Builder</span>
+          </Link>
+          <a
+            href="https://www.facebook.com/ah.rion.98"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] font-medium tracking-widest uppercase text-muted-foreground hover:text-primary transition-colors duration-300"
+          >
+            By <span className="text-gradient font-bold">AH RION</span>
+          </a>
+        </div>
 
         <div className="hidden md:flex items-center gap-8">
           {links.map((l) => (
