@@ -11,6 +11,15 @@ import { Mail, Lock, Eye, EyeOff, Loader2, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 
+const handleGoogleLogin = async (toast: any) => {
+  const { error } = await lovable.auth.signInWithOAuth("google", {
+    redirect_uri: window.location.origin,
+  });
+  if (error) {
+    toast({ title: "Google login failed", description: String(error), variant: "destructive" });
+  }
+};
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
