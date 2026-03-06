@@ -1,9 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Sun, Moon } from "lucide-react";
+import { Menu, X, Sun, Moon, LogIn } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
+import { useAuth } from "@/contexts/AuthContext";
 
 const links = [
   { to: "/", label: "Home" },
@@ -16,6 +17,7 @@ const Navbar = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
 
   const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
@@ -68,12 +70,20 @@ const Navbar = () => {
               </motion.div>
             </AnimatePresence>
           </button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/pricing">View Plans</Link>
-          </Button>
-          <Button size="sm" asChild>
-            <Link to="/resume">Build Resume</Link>
-          </Button>
+          {user ? (
+            <Button size="sm" asChild>
+              <Link to="/dashboard">Dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/login"><LogIn className="h-4 w-4 mr-1" />Login</Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link to="/resume">Build Resume</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="flex md:hidden items-center gap-2">
