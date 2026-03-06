@@ -70,12 +70,20 @@ const Navbar = () => {
               </motion.div>
             </AnimatePresence>
           </button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/pricing">View Plans</Link>
-          </Button>
-          <Button size="sm" asChild>
-            <Link to="/resume">Build Resume</Link>
-          </Button>
+          {user ? (
+            <Button size="sm" asChild>
+              <Link to="/dashboard">Dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/login"><LogIn className="h-4 w-4 mr-1" />Login</Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link to="/resume">Build Resume</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="flex md:hidden items-center gap-2">
