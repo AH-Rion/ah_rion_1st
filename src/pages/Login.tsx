@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,15 @@ import AuthLayout from "@/components/auth/AuthLayout";
 import { Mail, Lock, Eye, EyeOff, Loader2, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+
+const handleGoogleLogin = async (toast: any) => {
+  const { error } = await lovable.auth.signInWithOAuth("google", {
+    redirect_uri: window.location.origin,
+  });
+  if (error) {
+    toast({ title: "Google login failed", description: String(error), variant: "destructive" });
+  }
+};
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -55,7 +65,7 @@ const Login = () => {
           variant="outline"
           className="w-full h-11 gap-2 font-medium"
           type="button"
-          disabled
+          onClick={() => handleGoogleLogin(toast)}
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/>
