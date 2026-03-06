@@ -17,6 +17,7 @@ const Navbar = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
 
   const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
